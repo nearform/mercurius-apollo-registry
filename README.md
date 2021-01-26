@@ -1,0 +1,1 @@
+# mercurius-apollo-registry

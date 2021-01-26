@@ -1,0 +1,26 @@
+{
+  "name": "mercurius-apollo-registry",
+  "version": "0.1.0",
+  "description": "An experimental schema reporting plugin for Mercurius",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com:nearform/mercurius-apollo-registry.git"
+  },
+  "keywords": [
+    "mercurius",
+    "graphql",
+    "apollo",
+    "schema",
+    "reporter"
+  ],
+  "author": "NearForm Ltd",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "node-fetch": "^2.6.1",
+    "uuid": "^8.3.2"
+  }
+}
