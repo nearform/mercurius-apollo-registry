@@ -3,8 +3,7 @@
 const { v4: uuidv4 } = require('uuid')
 const crypto = require('crypto')
 const fetch = require('node-fetch')
-const { name, version} = require('./package.json')
-const { report } = require('process')
+// const { name, version } = require('./package.json')
 
 const schema = `
   type Journal {
@@ -32,13 +31,12 @@ const options = {
   registryUrl: 'https://schema-reporting.api.apollographql.com/api/graphql'
 }
 
-
-function getExecutableSchemaId(schema) {
+function getExecutableSchemaId (schema) {
   return crypto.createHash('sha256').update(schema).digest('hex')
 }
 
-function normalizeSchema(schema) {
-  // Apply stable sorting (such as alphabetical) to the order 
+function normalizeSchema (schema) {
+  // Apply stable sorting (such as alphabetical) to the order
   // of all type, field, and argument definitions.
 
   // Remove all redundant whitespace.
@@ -48,7 +46,7 @@ function normalizeSchema(schema) {
   return schema
 }
 
-async function makeInitialRegistryRequest(url, key, info) {
+async function makeInitialRegistryRequest (url, key, info) {
   const query = `
     mutation ReportServerInfo($info: EdgeServerInfo!) {
       me {
@@ -67,24 +65,24 @@ async function makeInitialRegistryRequest(url, key, info) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'x-api-key': key
     },
     body: JSON.stringify({
       query,
       variables: {
         executableSchema: false,
-        info,
+        info
       }
     })
   })
 
-  const { data: { me: { reportServerInfo } }} = await response.json()
+  const { data: { me: { reportServerInfo } } } = await response.json()
   console.log(reportServerInfo)
   return reportServerInfo
 }
 
-async function makeSchemaRegistryRequest(url, key, info, executableSchema) {
+async function makeSchemaRegistryRequest (url, key, info, executableSchema) {
   const query = `
     mutation ReportServerInfo($info: EdgeServerInfo!, $executableSchema: String ) {
       me {
@@ -103,7 +101,7 @@ async function makeSchemaRegistryRequest(url, key, info, executableSchema) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'x-api-key': key,
       'apollographql-client-name': 'apollo-engine-reporting',
       'apollographql-client-version': '0.1.0'
@@ -112,29 +110,29 @@ async function makeSchemaRegistryRequest(url, key, info, executableSchema) {
       query,
       variables: {
         executableSchema,
-        info,
+        info
       }
     })
   })
 
-  const { data: { me: { reportServerInfo } }} = await response.json()
+  const { data: { me: { reportServerInfo } } } = await response.json()
   console.log(reportServerInfo)
 }
 
-function sleep(ms) {
+function sleep (ms) {
   return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}   
+    setTimeout(resolve, ms)
+  })
+}
 
-async function main(opts) {
+async function main (opts) {
   const normalizedSchema = normalizeSchema(opts.schema)
 
   const edgeServerInfo = {
     bootId: uuidv4(),
     // bootId: '8a461928-c808-4ada-b449-c38bb01e636a',
     executableSchemaId: getExecutableSchemaId(normalizedSchema),
-    graphVariant: opts.apolloGraphVariant,
+    graphVariant: opts.apolloGraphVariant
     // libraryVersion: `${name}-${version}`,
     // platform: 'localhost',
     // runtimeVersion: `node ${process.version}`,
@@ -144,7 +142,7 @@ async function main(opts) {
   console.log(edgeServerInfo)
   const { inSeconds, withExecutableSchema } = await makeInitialRegistryRequest(opts.registryUrl, opts.apolloKey, edgeServerInfo)
 
-  if(withExecutableSchema) {
+  if (withExecutableSchema) {
     console.log(`Waiting ${inSeconds} until uploading to registry...`)
     await sleep(5 * 1000)
     await makeSchemaRegistryRequest(opts.registryUrl, opts.apolloKey, edgeServerInfo, normalizedSchema)

@@ -17,8 +17,7 @@ const books = [
     author: 'Stephen Hawking',
     price: 12.00
   }
-];
-
+]
 
 const schema = `
   type Book {

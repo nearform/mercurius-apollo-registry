@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid')
 
 const wait = util.promisify((a, f) => setTimeout(f, a))
 
-async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, executableSchema, log }) {
+async function makeRegistryRequest ({ registryUrl, apiKey, edgeServerInfo, executableSchema, log }) {
   try {
     const initialQuery = `
     mutation ReportServerInfo($info: EdgeServerInfo!) {
@@ -39,41 +39,41 @@ async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, execut
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'x-api-key': apiKey,
+        Accept: 'application/json',
+        'x-api-key': apiKey
       },
       body: JSON.stringify({
         query: executableSchema ? reportQuery : initialQuery,
         variables: {
           executableSchema,
-          info: edgeServerInfo,
+          info: edgeServerInfo
         }
       })
     })
     const jsonData = await response.json()
-    log.debug(jsonData, `Registry response`)
+    log.debug(jsonData, 'Registry response')
 
-    const { data: { me: { reportServerInfo } }} = jsonData
+    const { data: { me: { reportServerInfo } } } = jsonData
     return reportServerInfo
-  } catch(error) {
+  } catch (error) {
     log.error(error)
-    // We should handle timeout/400/500 errors here as 
+    // We should handle timeout/400/500 errors here as
     // well as malformed responses and GraphQL errors
 
     // For now lets throw.
     throw error
   }
-} 
-
-function normalizeSchema(schema) {
-  return schema.replace(/(\r\n|\n|\r)/gm,'').replace(/\s+/g,' ').trim()
 }
 
-function getExecutableSchemaId(schema) {
+function normalizeSchema (schema) {
+  return schema.replace(/(\r\n|\n|\r)/gm, '').replace(/\s+/g, ' ').trim()
+}
+
+function getExecutableSchemaId (schema) {
   return crypto.createHash('sha256').update(schema).digest('hex')
 }
 
-async function reporterLoop(log, options, edgeServerInfo) {
+async function reporterLoop (log, options, edgeServerInfo) {
   let lastResponse
 
   do {
@@ -83,33 +83,33 @@ async function reporterLoop(log, options, edgeServerInfo) {
 
     lastResponse = await makeRegistryRequest({ ...options, edgeServerInfo, executableSchema, log })
 
-    if(lastResponse) {
-      if(lastResponse.inSeconds >= 3600) {
-        log.warn(`Registry timeout is greater than 3600 seconds. Possible registry or configuration issue. Trying again in 60 seconds.`)
+    if (lastResponse) {
+      if (lastResponse.inSeconds >= 3600) {
+        log.warn('Registry timeout is greater than 3600 seconds. Possible registry or configuration issue. Trying again in 60 seconds.')
         lastResponse.inSeconds = 60
       }
 
       log.debug(`Waiting ${lastResponse.inSeconds} seconds until next registry request`)
       await wait(lastResponse.inSeconds * 1000)
     }
-  } while(lastResponse)
+  } while (lastResponse)
 
   // TODO: handle this case better
   throw new Error('Apollo Registry Reporter Died')
 }
 
 const plugin = async function (fastify, opts) {
-  if(!opts.apiKey) {
+  if (!opts.apiKey) {
     throw new Error('an Apollo Studio API key is required')
   }
 
-  if(!opts.schema) {
+  if (!opts.schema) {
     throw new Error('a schema string is required')
   }
 
   const options = {
     graphVariant: opts.graphVariant || 'current',
-    registryUrl:  opts.registryUrl || 'https://schema-reporting.api.apollographql.com/api/graphql',
+    registryUrl: opts.registryUrl || 'https://schema-reporting.api.apollographql.com/api/graphql',
     schema: normalizeSchema(opts.schema),
     apiKey: opts.apiKey
   }
@@ -117,15 +117,14 @@ const plugin = async function (fastify, opts) {
   const edgeServerInfo = {
     bootId: uuidv4(),
     executableSchemaId: getExecutableSchemaId(options.schema),
-    graphVariant: options.graphVariant,
+    graphVariant: options.graphVariant
   }
 
   fastify.log.debug(`Edge Server Config: ${JSON.stringify(edgeServerInfo)}`)
 
-  reporterLoop(fastify.log, options, edgeServerInfo)
-
-
-  return
+  fastify.addHook('onReady', async function () {
+    reporterLoop(fastify.log, options, edgeServerInfo)
+  })
 }
 
 module.exports = fp(plugin, {
