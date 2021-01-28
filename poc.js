@@ -3,13 +3,16 @@
 const { v4: uuidv4 } = require('uuid')
 const crypto = require('crypto')
 const fetch = require('node-fetch')
-const { promisify } = require('util')
 const { name, version} = require('./package.json')
 const { report } = require('process')
 
-const sleep = promisify(setTimeout)
-
 const schema = `
+  type Journal {
+    foo: String
+    author: String
+    issueNumber: Int
+  }
+
   type Book {
     title: String
     author: String
@@ -18,14 +21,17 @@ const schema = `
 
   type Query {
     books: [Book]
+    journals: [Journal]
   }
 `
+
 const options = {
   schema,
   apolloKey: '',
   apolloGraphVariant: 'current',
   registryUrl: 'https://schema-reporting.api.apollographql.com/api/graphql'
 }
+
 
 function getExecutableSchemaId(schema) {
   return crypto.createHash('sha256').update(schema).digest('hex')
@@ -36,13 +42,13 @@ function normalizeSchema(schema) {
   // of all type, field, and argument definitions.
 
   // Remove all redundant whitespace.
-  
+
   // Remove all comments (but not docstrings).
-  
+
   return schema
 }
 
-async function makeRegistryRequest(url, key, info, executableSchema = false) {
+async function makeInitialRegistryRequest(url, key, info) {
   const query = `
     mutation ReportServerInfo($info: EdgeServerInfo!) {
       me {
@@ -67,7 +73,7 @@ async function makeRegistryRequest(url, key, info, executableSchema = false) {
     body: JSON.stringify({
       query,
       variables: {
-        executableSchema,
+        executableSchema: false,
         info,
       }
     })
@@ -78,9 +84,50 @@ async function makeRegistryRequest(url, key, info, executableSchema = false) {
   return reportServerInfo
 }
 
-async function main(opts) {
-  let timeout;
+async function makeSchemaRegistryRequest(url, key, info, executableSchema) {
+  const query = `
+    mutation ReportServerInfo($info: EdgeServerInfo!, $executableSchema: String ) {
+      me {
+        __typename
+        ... on ServiceMutation {
+          reportServerInfo(info: $info, executableSchema: $executableSchema) {
+            inSeconds
+            withExecutableSchema
+          }
+        }
+      }
+    }
+    `
 
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'x-api-key': key,
+      'apollographql-client-name': 'apollo-engine-reporting',
+      'apollographql-client-version': '0.1.0'
+    },
+    body: JSON.stringify({
+      query,
+      variables: {
+        executableSchema,
+        info,
+      }
+    })
+  })
+
+  const { data: { me: { reportServerInfo } }} = await response.json()
+  console.log(reportServerInfo)
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}   
+
+async function main(opts) {
   const normalizedSchema = normalizeSchema(opts.schema)
 
   const edgeServerInfo = {
@@ -95,21 +142,16 @@ async function main(opts) {
     // userVersion: ''
   }
   console.log(edgeServerInfo)
+  const { inSeconds, withExecutableSchema } = await makeInitialRegistryRequest(opts.registryUrl, opts.apolloKey, edgeServerInfo)
 
-  async function updateRegistry(timeout = 0) {
-    await sleep(timeout * 1000)
-    const { inSeconds, executableSchema } = await makeRegistryRequest(opts.registryUrl, opts.apolloKey, edgeServerInfo)
-    return inSeconds
+  if(withExecutableSchema) {
+    console.log(`Waiting ${inSeconds} until uploading to registry...`)
+    await sleep(5 * 1000)
+    await makeSchemaRegistryRequest(opts.registryUrl, opts.apolloKey, edgeServerInfo, normalizedSchema)
+  } else {
+    // we need to retry in $inSeconds time.
+    console.log(`retry needed in ${inSeconds}`)
   }
-
-  const initialResp = await makeRegistryRequest(opts.registryUrl, opts.apolloKey, edgeServerInfo)
-  timeout = initialResp.inSeconds
-
-  while(true) {
-    timeout = await updateRegistry(timeout)
-    console.log(`Timeout is now ${timeout}`)
-  }
-
 }
 
 main(options)
