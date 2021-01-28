@@ -1,9 +1,12 @@
 const crypto = require('crypto')
+const util = require('util')
 const fp = require('fastify-plugin')
 const fetch = require('node-fetch')
 const { v4: uuidv4 } = require('uuid')
 
-async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, executableSchema }) {
+const wait = util.promisify((a, f) => setTimeout(f, a))
+
+async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, executableSchema, log }) {
   try {
     const initialQuery = `
     mutation ReportServerInfo($info: EdgeServerInfo!) {
@@ -47,16 +50,13 @@ async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, execut
         }
       })
     })
-
-    console.log(response)
-
     const jsonData = await response.json()
-
-    console.log(JSON.stringify(jsonData))
+    log.debug(jsonData, `Registry response`)
 
     const { data: { me: { reportServerInfo } }} = jsonData
     return reportServerInfo
   } catch(error) {
+    log.error(error)
     // We should handle timeout/400/500 errors here as 
     // well as malformed responses and GraphQL errors
 
@@ -66,45 +66,36 @@ async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, execut
 } 
 
 function normalizeSchema(schema) {
-  // Apply stable sorting (such as alphabetical) to the order 
-  // of all type, field, and argument definitions.
-
-  // Remove all redundant whitespace.
-
-  // Remove all comments (but not docstrings).
-
-  // For now we just use the schema as is. 
-  return schema
+  return schema.replace(/(\r\n|\n|\r)/gm,'').replace(/\s+/g,' ').trim()
 }
 
 function getExecutableSchemaId(schema) {
   return crypto.createHash('sha256').update(schema).digest('hex')
 }
-// TODO: promisify
-async function wait(sec = 20) {
-  return new Promise(resolve => {
-    setTimeout(resolve, sec * 1000);
-  });
-}
 
-async function reporterLoop(options, edgeServerInfo) {
+async function reporterLoop(log, options, edgeServerInfo) {
   let lastResponse
 
   do {
     const executableSchema = (lastResponse && lastResponse.withExecutableSchema) ? options.schema : false
 
-    console.log('schema and last resp: ', JSON.stringify({ executableSchema, lastResponse }))
+    log.debug(`Making registry request with schema: ${!!executableSchema}`)
 
-    lastResponse = await makeRegistryRequest({ ...options, edgeServerInfo, executableSchema })
+    lastResponse = await makeRegistryRequest({ ...options, edgeServerInfo, executableSchema, log })
 
     if(lastResponse) {
-      console.log('Waiting ', lastResponse.inSeconds)
-      await wait(lastResponse.inSeconds)
+      if(lastResponse.inSeconds >= 3600) {
+        log.warn(`Registry timeout is greater than 3600 seconds. Possible registry or configuration issue. Trying again in 60 seconds.`)
+        lastResponse.inSeconds = 60
+      }
+
+      log.debug(`Waiting ${lastResponse.inSeconds} seconds until next registry request`)
+      await wait(lastResponse.inSeconds * 1000)
     }
   } while(lastResponse)
 
   // TODO: handle this case better
-  throw new Error('Reporter Died')
+  throw new Error('Apollo Registry Reporter Died')
 }
 
 const plugin = async function (fastify, opts) {
@@ -119,23 +110,26 @@ const plugin = async function (fastify, opts) {
   const options = {
     graphVariant: opts.graphVariant || 'current',
     registryUrl:  opts.registryUrl || 'https://schema-reporting.api.apollographql.com/api/graphql',
-    schema: opts.schema,
+    schema: normalizeSchema(opts.schema),
     apiKey: opts.apiKey
   }
 
   const edgeServerInfo = {
     bootId: uuidv4(),
-    executableSchemaId: getExecutableSchemaId(normalizeSchema(options.schema)),
+    executableSchemaId: getExecutableSchemaId(options.schema),
     graphVariant: options.graphVariant,
   }
 
-  console.log(`Edge Server Config: ${JSON.stringify(edgeServerInfo)}`)
-  reporterLoop(options, edgeServerInfo)
+  fastify.log.debug(`Edge Server Config: ${JSON.stringify(edgeServerInfo)}`)
+
+  reporterLoop(fastify.log, options, edgeServerInfo)
+
 
   return
 }
 
 module.exports = fp(plugin, {
   fastify: '3.x',
-  name: 'mercurius-apollo-registry'
+  name: 'mercurius-apollo-registry',
+  dependencies: ['mercurius']
 })
