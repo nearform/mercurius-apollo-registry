@@ -4,7 +4,7 @@ const fp = require('fastify-plugin')
 const fetch = require('node-fetch')
 const { v4: uuidv4 } = require('uuid')
 
-const wait = util.promisify((a, f) => setTimeout(f, a))
+const wait = util.promisify(setTimeout)
 
 async function makeRegistryRequest ({ registryUrl, apiKey, edgeServerInfo, executableSchema, log }) {
   try {
