@@ -1,3 +1,5 @@
+'use strict'
+
 const crypto = require('crypto')
 const util = require('util')
 const fp = require('fastify-plugin')
@@ -129,6 +131,6 @@ const plugin = async function (fastify, opts) {
 
 module.exports = fp(plugin, {
   fastify: '3.x',
-  name: 'mercurius-apollo-registry',
+  name: 'mercuriusApolloRegistry',
   dependencies: ['mercurius']
 })

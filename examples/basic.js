@@ -48,9 +48,4 @@ app.register(mercuriusApolloRegistry, {
   apiKey: ''
 })
 
-app.get('/', async function (req, reply) {
-  const query = '{ books { title author price } }'
-  return reply.graphql(query)
-})
-
 app.listen(3000)
