@@ -24,6 +24,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "fastify-plugin": "^3.0.0",
+    "graphql": "^15.5.0",
     "node-fetch": "^2.6.1",
     "uuid": "^8.3.2"
   },
