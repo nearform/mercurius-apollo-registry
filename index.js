@@ -5,34 +5,44 @@ const fp = require('fastify-plugin')
 const fetch = require('node-fetch')
 const { v4: uuidv4 } = require('uuid')
 
-async function makeRegistryRequest ({ registryUrl, apiKey, edgeServerInfo, executableSchema, log }) {
-  const initialQuery = `
-  mutation ReportServerInfo($info: EdgeServerInfo!) {
-    me {
-      __typename
-      ... on ServiceMutation {
-        reportServerInfo(info: $info) {
-          inSeconds
-          withExecutableSchema
-        }
+const defaultRegistryURl =
+  'https://schema-reporting.api.apollographql.com/api/graphql'
+const defaultGraphVariant = 'current'
+
+const initialQuery = `
+mutation ReportServerInfo($info: EdgeServerInfo!) {
+  me {
+    __typename
+    ... on ServiceMutation {
+      reportServerInfo(info: $info) {
+        inSeconds
+        withExecutableSchema
       }
     }
   }
-  `
+}
+`
 
-  const reportQuery = `
-  mutation ReportServerInfo($info: EdgeServerInfo!, $executableSchema: String) {
-    me {
-      __typename
-      ... on ServiceMutation {
-        reportServerInfo(info: $info, executableSchema: $executableSchema) {
-          inSeconds
-          withExecutableSchema
-        }
+const reportQuery = `
+mutation ReportServerInfo($info: EdgeServerInfo!, $executableSchema: String) {
+  me {
+    __typename
+    ... on ServiceMutation {
+      reportServerInfo(info: $info, executableSchema: $executableSchema) {
+        inSeconds
+        withExecutableSchema
       }
     }
-  }`
+  }
+}`
 
+async function makeRegistryRequest({
+  registryUrl,
+  apiKey,
+  edgeServerInfo,
+  executableSchema,
+  log
+}) {
   const response = await fetch(registryUrl, {
     method: 'POST',
     headers: {
@@ -49,70 +59,96 @@ async function makeRegistryRequest ({ registryUrl, apiKey, edgeServerInfo, execu
     })
   })
 
-  if (response.ok) {
-    const jsonData = await response.json()
-    log.debug(jsonData, 'registry response')
-
-    if (!jsonData || !jsonData.data || !jsonData.data.me) {
-      log.warn('malformed registry response')
-      throw new Error('malformed registry response')
-    }
-
-    const { data: { me: report } } = jsonData
-
-    if (report.reportServerInfo) {
-      return report.reportServerInfo
-    } else {
-      // if the protocol response doesn't match
-      // expected parameters we stop reporting.
-      log.debug(report, 'unknown registry error occurred')
-      throw new Error('unknown registry error occurred')
-    }
-  } else {
-    log.warn(`registry request failed with HTTP error response: ${response.status} ${response.statusText}`)
+  if (!response.ok) {
+    log.warn(
+      `registry request failed with HTTP error response: ${response.status} ${response.statusText}`
+    )
     // Protocol requires us to try again in 20 seconds for non-2xx response.
     return { inSeconds: 20, withExecutableSchema: false }
   }
+
+  const jsonData = await response.json()
+  log.debug(jsonData, 'registry response')
+
+  if (!jsonData || !jsonData.data || !jsonData.data.me) {
+    log.warn('malformed registry response')
+    throw new Error('malformed registry response')
+  }
+
+  const {
+    data: { me: report }
+  } = jsonData
+
+  if (report.reportServerInfo) {
+    return report.reportServerInfo
+  }
+
+  // if the protocol response doesn't match
+  // expected parameters we stop reporting.
+  log.warn(report, 'unknown registry error occurred')
+  throw new Error('unknown registry error occurred')
 }
 
-function normalizeSchema (schema) {
-  return schema.replace(/(\r\n|\n|\r)/gm, '').replace(/\s+/g, ' ').trim()
+function normalizeSchema(schema) {
+  return schema
+    .replace(/(\r\n|\n|\r)/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
-function getExecutableSchemaId (schema) {
+function getExecutableSchemaId(schema) {
   return crypto.createHash('sha256').update(schema).digest('hex')
 }
 
-async function reporterLoop (fastify, options, edgeServerInfo) {
+async function reporterLoop(fastify, options, edgeServerInfo) {
   let lastResponse
   let timeoutHandle
+  let resolveTimeoutPromise
 
-  fastify.addHook('onClose', (fastify, done) => {
+  fastify.addHook('onClose', (_, done) => {
     clearTimeout(timeoutHandle)
-    timeoutHandle = false
+    timeoutHandle = null
+
+    if (resolveTimeoutPromise) {
+      resolveTimeoutPromise()
+    }
+
     done()
   })
 
   do {
     try {
-      const executableSchema = (lastResponse && lastResponse.withExecutableSchema) ? options.schema : false
+      const executableSchema =
+        lastResponse && lastResponse.withExecutableSchema
+          ? options.schema
+          : false
 
-      fastify.log.debug(`making registry request with schema: ${!!executableSchema}`)
+      fastify.log.debug(
+        `making registry request with schema: ${!!executableSchema}`
+      )
 
-      lastResponse = await makeRegistryRequest({ ...options, edgeServerInfo, executableSchema, log: fastify.log })
+      lastResponse = await makeRegistryRequest({
+        ...options,
+        edgeServerInfo,
+        executableSchema,
+        log: fastify.log
+      })
 
-      if (lastResponse) {
-        if (lastResponse.inSeconds >= 3600) {
-          fastify.log.warn('registry timeout is greater than 3600 seconds. Possible registry or configuration issue. Trying again in 60 seconds.')
-          lastResponse.inSeconds = 60
-        }
-
-        fastify.log.debug(`waiting ${lastResponse.inSeconds} seconds until next registry request`)
-
-        await new Promise((resolve, reject) => {
-          timeoutHandle = setTimeout(() => resolve(), lastResponse.inSeconds * 1000)
-        })
+      if (lastResponse.inSeconds >= 3600) {
+        fastify.log.warn(
+          'registry timeout is greater than 3600 seconds. Possible registry or configuration issue. Trying again in 60 seconds.'
+        )
+        lastResponse.inSeconds = 60
       }
+
+      fastify.log.debug(
+        `waiting ${lastResponse.inSeconds} seconds until next registry request`
+      )
+
+      await new Promise(resolve => {
+        resolveTimeoutPromise = resolve
+        timeoutHandle = setTimeout(resolve, lastResponse.inSeconds * 1000)
+      })
     } catch (error) {
       fastify.log.error(error, 'fatal error occurred during registry update')
       throw error
@@ -127,13 +163,13 @@ const plugin = async function (fastify, opts) {
     throw new Error('an Apollo Studio API key is required')
   }
 
-  if (!opts.schema || !opts.schema.length) {
+  if (typeof opts.schema !== 'string' || !opts.schema.length) {
     throw new Error('a schema string is required')
   }
 
   const options = {
-    graphVariant: opts.graphVariant || 'current',
-    registryUrl: opts.registryUrl || 'https://schema-reporting.api.apollographql.com/api/graphql',
+    graphVariant: opts.graphVariant || defaultGraphVariant,
+    registryUrl: opts.registryUrl || defaultRegistryURl,
     schema: normalizeSchema(opts.schema),
     apiKey: opts.apiKey
   }
