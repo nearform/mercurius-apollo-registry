@@ -1,12 +1,10 @@
 'use strict'
 
-const path = require('path')
 const tap = require('tap')
 const test = tap.test
 const Fastify = require('fastify')
 const fp = require('fastify-plugin')
 const proxyquire = require('proxyquire')
-const sinon = require('sinon')
 const faker = require('faker')
 
 const mockSuccessfulRequest = {
@@ -35,7 +33,7 @@ test('plugin should exist and load without error', t => {
   const registryUrl = faker.internet.url()
   const fetchMock = require('fetch-mock').sandbox()
   fetchMock.any(mockSuccessfulRequest)
-  const plugin = proxyquire('../', { 'node-fetch': fetchMock });
+  const plugin = proxyquire('../', { 'node-fetch': fetchMock })
 
   const fastify = Fastify()
 
@@ -61,7 +59,7 @@ test('plugin should throw an error if api key is missing', t => {
   const registryUrl = faker.internet.url()
   const fetchMock = require('fetch-mock').sandbox()
   fetchMock.any(mockSuccessfulRequest)
-  const plugin = proxyquire('../', { 'node-fetch': fetchMock });
+  const plugin = proxyquire('../', { 'node-fetch': fetchMock })
 
   const fastify = Fastify()
 
@@ -87,7 +85,7 @@ test('plugin should throw an error if schema is missing', t => {
   const registryUrl = faker.internet.url()
   const fetchMock = require('fetch-mock').sandbox()
   fetchMock.any(mockSuccessfulRequest)
-  const plugin = proxyquire('../', { 'node-fetch': fetchMock });
+  const plugin = proxyquire('../', { 'node-fetch': fetchMock })
 
   const fastify = Fastify()
 
@@ -113,7 +111,7 @@ test('plugin should throw an error if schema is an empty string', t => {
   const registryUrl = faker.internet.url()
   const fetchMock = require('fetch-mock').sandbox()
   fetchMock.any(mockSuccessfulRequest)
-  const plugin = proxyquire('../', { 'node-fetch': fetchMock });
+  const plugin = proxyquire('../', { 'node-fetch': fetchMock })
 
   const fastify = Fastify()
 

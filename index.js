@@ -49,23 +49,23 @@ async function makeRegistryRequest ({ registryUrl, apiKey, edgeServerInfo, execu
     })
   })
 
-  if(response.ok) {
+  if (response.ok) {
     const jsonData = await response.json()
     log.debug(jsonData, 'registry response')
 
-    if(!jsonData || !jsonData.data || !jsonData.data.me) {
+    if (!jsonData || !jsonData.data || !jsonData.data.me) {
       log.warn('malformed registry response')
       throw new Error('malformed registry response')
     }
 
     const { data: { me: report } } = jsonData
 
-    if(report.reportServerInfo) {
+    if (report.reportServerInfo) {
       return report.reportServerInfo
     } else {
       // if the protocol response doesn't match
       // expected parameters we stop reporting.
-      log.debug(report, `unknown registry error occurred`)
+      log.debug(report, 'unknown registry error occurred')
       throw new Error('unknown registry error occurred')
     }
   } else {
@@ -109,17 +109,17 @@ async function reporterLoop (fastify, options, edgeServerInfo) {
 
         fastify.log.debug(`waiting ${lastResponse.inSeconds} seconds until next registry request`)
 
-        await new Promise((resolve, _) => {
+        await new Promise((resolve, reject) => {
           timeoutHandle = setTimeout(() => resolve(), lastResponse.inSeconds * 1000)
         })
       }
-    } catch(error) {
-      fastify.log.error(error, `fatal error occurred during registry update`)
+    } catch (error) {
+      fastify.log.error(error, 'fatal error occurred during registry update')
       throw error
     }
   } while (timeoutHandle && lastResponse)
 
-  fastify.log.info(`registry reporter has stopped`)
+  fastify.log.info('registry reporter has stopped')
 }
 
 const plugin = async function (fastify, opts) {
@@ -144,7 +144,7 @@ const plugin = async function (fastify, opts) {
     graphVariant: options.graphVariant
   }
 
-  fastify.log.debug(edgeServerInfo, `generated edge server config`)
+  fastify.log.debug(edgeServerInfo, 'generated edge server config')
 
   fastify.addHook('onReady', async function () {
     reporterLoop(fastify, options, edgeServerInfo)
