@@ -5,36 +5,11 @@ const fp = require('fastify-plugin')
 const fetch = require('node-fetch')
 const { v4: uuidv4 } = require('uuid')
 
+const { initialQuery, reportQuery } = require('./lib/queries')
+
 const defaultRegistryURl =
   'https://schema-reporting.api.apollographql.com/api/graphql'
 const defaultGraphVariant = 'current'
-
-const initialQuery = `
-mutation ReportServerInfo($info: EdgeServerInfo!) {
-  me {
-    __typename
-    ... on ServiceMutation {
-      reportServerInfo(info: $info) {
-        inSeconds
-        withExecutableSchema
-      }
-    }
-  }
-}
-`
-
-const reportQuery = `
-mutation ReportServerInfo($info: EdgeServerInfo!, $executableSchema: String) {
-  me {
-    __typename
-    ... on ServiceMutation {
-      reportServerInfo(info: $info, executableSchema: $executableSchema) {
-        inSeconds
-        withExecutableSchema
-      }
-    }
-  }
-}`
 
 async function makeRegistryRequest({
   registryUrl,

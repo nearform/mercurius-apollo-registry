@@ -6,6 +6,9 @@ const Fastify = require('fastify')
 const fp = require('fastify-plugin')
 const proxyquire = require('proxyquire')
 const faker = require('faker')
+const sinon = require('sinon')
+
+const { initialQuery } = require('../lib/queries')
 
 /**
  * mock fetch manually
@@ -117,6 +120,89 @@ test('plugin registration', async t => {
   })
 })
 
-// t.test('plugin should handle fetch errors', t => {})
+test('apollo regitry api interaction', async t => {
+  t.only(
+    'invokes the api with executableSchema false and the initial query',
+    async t => {
+      const fetchMock = sinon.stub().resolves({
+        ok: true,
+        json: sinon
+          .stub()
+          .resolves({ data: { me: { reportServerInfo: true } } })
+      })
 
-// t.test('plugin should throw an error if the registry responds with a malformed response', t => {})
+      const plugin = proxyquire('../', { 'node-fetch': fetchMock })
+
+      const fastify = Fastify()
+
+      fastify.register(makeStubMercurius())
+
+      const registryUrl = faker.internet.url()
+      const apiKey = faker.random.uuid()
+      fastify.register(plugin, {
+        apiKey,
+        schema: faker.lorem.paragraph(),
+        registryUrl
+      })
+
+      await fastify.ready()
+
+      const requestInit = fetchMock.getCalls()[0].args[1]
+
+      sinon.assert.match(requestInit.headers, { 'x-api-key': apiKey })
+
+      const parsedBody = JSON.parse(requestInit.body)
+
+      sinon.assert.match(parsedBody, {
+        query: initialQuery,
+        variables: {
+          executableSchema: false,
+          info: sinon.match.object
+        }
+      })
+
+      return fastify.close()
+    }
+  )
+
+  t.only(
+    'pseudocode: runs the next iteration only when the inSeconds from the reponse have elapsed',
+    async t => {
+      const inSeconds = 42
+
+      const fetchMock = sinon.stub().resolves({
+        ok: true,
+        json: sinon
+          .stub()
+          .resolves({ data: { me: { reportServerInfo: true, inSeconds } } })
+      })
+
+      const plugin = proxyquire('../', { 'node-fetch': fetchMock })
+
+      const fastify = Fastify()
+
+      fastify.register(makeStubMercurius())
+
+      const registryUrl = faker.internet.url()
+      const apiKey = faker.random.uuid()
+      fastify.register(plugin, {
+        apiKey,
+        schema: faker.lorem.paragraph(),
+        registryUrl
+      })
+
+      await fastify.ready()
+
+      t.equal(fetchMock.getCalls().length, 1)
+
+      // advance time by inSeconds - X
+      t.equal(fetchMock.getCalls().length, 1)
+
+      // advance time to inSeconds + x
+      t.equal(fetchMock.getCalls().length, 2)
+      // ^ expect that it's invoke with the right parameters that you expect in the second call
+
+      return fastify.close()
+    }
+  )
+})
