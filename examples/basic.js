@@ -2,6 +2,7 @@
 
 const Fastify = require('fastify')
 const mercurius = require('mercurius')
+
 const mercuriusApolloRegistry = require('../')
 
 const app = Fastify()
@@ -10,12 +11,12 @@ const books = [
   {
     title: 'The Time Machine',
     author: 'HG Wells',
-    price: 10.00
+    price: 10.0
   },
   {
     title: 'A Brief History of Time',
     author: 'Stephen Hawking',
-    price: 12.00
+    price: 12.0
   }
 ]
 

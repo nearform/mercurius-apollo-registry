@@ -14,28 +14,26 @@ const RETRY_TIMEOUT = 20
 
 const clock = sinon.useFakeTimers()
 
-function makeStubMercurius () {
+function makeStubMercurius() {
   return fp(async () => {}, {
     name: 'mercurius'
   })
 }
 
-test('plugin registration', async t => {
+test('plugin registration', async (t) => {
   t.beforeEach(async () => {
     const fetchMock = sinon.stub().resolves({
       ok: true,
-      json: sinon
-        .stub()
-        .resolves({
-          data: {
-            me: {
-              reportServerInfo: {
-                inSeconds: 180,
-                withExecutableSchema: false
-              }
+      json: sinon.stub().resolves({
+        data: {
+          me: {
+            reportServerInfo: {
+              inSeconds: 180,
+              withExecutableSchema: false
             }
           }
-        })
+        }
+      })
     })
 
     const plugin = proxyquire('../', { 'node-fetch': fetchMock })
@@ -52,7 +50,7 @@ test('plugin registration', async t => {
     return t.tearDown(t.context.fastify.close.bind(t.context.fastify))
   })
 
-  t.test('plugin should exist and load without error', async t => {
+  t.test('plugin should exist and load without error', async (t) => {
     const { fastify, plugin } = t.context
 
     fastify.register(plugin, {
@@ -64,7 +62,7 @@ test('plugin registration', async t => {
     return fastify.ready()
   })
 
-  t.test('plugin should throw an error if schema is missing', async t => {
+  t.test('plugin should throw an error if schema is missing', async (t) => {
     const { fastify, plugin } = t.context
 
     fastify.register(plugin, {
@@ -75,7 +73,7 @@ test('plugin registration', async t => {
     return t.rejects(() => fastify.ready(), 'a schema string is required')
   })
 
-  t.test('plugin should throw an error if schema is missing', async t => {
+  t.test('plugin should throw an error if schema is missing', async (t) => {
     const { fastify, plugin } = t.context
 
     fastify.register(plugin, {
@@ -87,7 +85,7 @@ test('plugin registration', async t => {
     return t.rejects(() => fastify.ready(), 'a schema string is required')
   })
 
-  t.test('plugin should throw an error if api key is missing', async t => {
+  t.test('plugin should throw an error if api key is missing', async (t) => {
     const { fastify, plugin } = t.context
 
     fastify.register(plugin, {
@@ -95,13 +93,10 @@ test('plugin registration', async t => {
       registryUrl: faker.internet.url()
     })
 
-    return t.rejects(
-      () => fastify.ready(),
-      'an Apollo Studio API key is required'
-    )
+    return t.rejects(() => fastify.ready(), 'an Apollo Studio API key is required')
   })
 
-  t.test('registryUrl should be optional', async t => {
+  t.test('registryUrl should be optional', async (t) => {
     const { fastify, plugin } = t.context
 
     fastify.register(plugin, {
@@ -113,7 +108,7 @@ test('plugin registration', async t => {
   })
 })
 
-test('apollo registry api requests', async t => {
+test('apollo registry api requests', async (t) => {
   t.beforeEach(async () => {
     const fastify = Fastify()
     fastify.register(makeStubMercurius())
@@ -130,24 +125,22 @@ test('apollo registry api requests', async t => {
     return t.tearDown(t.context.fastify.close.bind(t.context.fastify))
   })
 
-  t.test('invokes the api with executableSchema false and the initial query', async t => {
+  t.test('invokes the api with executableSchema false and the initial query', async (t) => {
     const { fastify, opts } = t.context
 
     const REGISTRY_TIMEOUT = 60
     const fetchMock = sinon.stub().resolves({
       ok: true,
-      json: sinon
-        .stub()
-        .resolves({
-          data: {
-            me: {
-              reportServerInfo: {
-                inSeconds: REGISTRY_TIMEOUT,
-                withExecutableSchema: true
-              }
+      json: sinon.stub().resolves({
+        data: {
+          me: {
+            reportServerInfo: {
+              inSeconds: REGISTRY_TIMEOUT,
+              withExecutableSchema: true
             }
           }
-        })
+        }
+      })
     })
 
     const plugin = proxyquire('../', { 'node-fetch': fetchMock })
@@ -170,25 +163,23 @@ test('apollo registry api requests', async t => {
     })
   })
 
-  t.test('runs the next iteration only when the inSeconds from the response have elapsed', async t => {
+  t.test('runs the next iteration only when the inSeconds from the response have elapsed', async (t) => {
     const { fastify, opts } = t.context
 
     const REGISTRY_TIMEOUT = 60
 
     const fetchMock = sinon.stub().resolves({
       ok: true,
-      json: sinon
-        .stub()
-        .resolves({
-          data: {
-            me: {
-              reportServerInfo: {
-                inSeconds: REGISTRY_TIMEOUT,
-                withExecutableSchema: true
-              }
+      json: sinon.stub().resolves({
+        data: {
+          me: {
+            reportServerInfo: {
+              inSeconds: REGISTRY_TIMEOUT,
+              withExecutableSchema: true
             }
           }
-        })
+        }
+      })
     })
 
     const plugin = proxyquire('../', { 'node-fetch': fetchMock })
@@ -221,7 +212,7 @@ test('apollo registry api requests', async t => {
     })
   })
 
-  t.test('runs the next iteration sooner than the MAX_TIMEOUT reported by the registry', async t => {
+  t.test('runs the next iteration sooner than the MAX_TIMEOUT reported by the registry', async (t) => {
     const { fastify, opts } = t.context
 
     // 24 Hour timeout
@@ -229,18 +220,16 @@ test('apollo registry api requests', async t => {
 
     const fetchMock = sinon.stub().resolves({
       ok: true,
-      json: sinon
-        .stub()
-        .resolves({
-          data: {
-            me: {
-              reportServerInfo: {
-                inSeconds: REGISTRY_TIMEOUT,
-                withExecutableSchema: false
-              }
+      json: sinon.stub().resolves({
+        data: {
+          me: {
+            reportServerInfo: {
+              inSeconds: REGISTRY_TIMEOUT,
+              withExecutableSchema: false
             }
           }
-        })
+        }
+      })
     })
 
     const plugin = proxyquire('../', { 'node-fetch': fetchMock })
@@ -267,7 +256,7 @@ test('apollo registry api requests', async t => {
     })
   })
 
-  t.test('plugin retries after a failed registry request (non 200)', async t => {
+  t.test('plugin retries after a failed registry request (non 200)', async (t) => {
     const { fastify, opts } = t.context
 
     const fetchMock = sinon.stub().resolves({ ok: false })
@@ -288,7 +277,7 @@ test('apollo registry api requests', async t => {
     t.equal(fetchMock.getCalls().length, 2)
   })
 
-  t.test('plugin retries after a malformed registry response', async t => {
+  t.test('plugin retries after a malformed registry response', async (t) => {
     const { fastify, opts } = t.context
 
     const fetchMock = sinon.stub().resolves({
@@ -313,7 +302,7 @@ test('apollo registry api requests', async t => {
     t.equal(fetchMock.getCalls().length, 2)
   })
 
-  t.test('plugin retries after an unknown registry response', async t => {
+  t.test('plugin retries after an unknown registry response', async (t) => {
     const { fastify, opts } = t.context
     const fetchMock = sinon.stub().resolves({
       ok: true,
@@ -343,7 +332,7 @@ test('apollo registry api requests', async t => {
     t.equal(fetchMock.getCalls().length, 2)
   })
 
-  t.test('plugin exits after a fatal exception', async t => {
+  t.test('plugin exits after a fatal exception', async (t) => {
     const { fastify, opts } = t.context
     const fetchMock = sinon.stub().throws()
 
@@ -355,7 +344,7 @@ test('apollo registry api requests', async t => {
 
     // Ensure plugin has exited on exception by checking
     // there are no further retries.
-    await clock.tickAsync((RETRY_TIMEOUT * 2) * 1000)
+    await clock.tickAsync(RETRY_TIMEOUT * 2 * 1000)
     t.equal(fetchMock.getCalls().length, 1)
   })
 })

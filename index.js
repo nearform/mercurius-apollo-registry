@@ -1,6 +1,7 @@
 'use strict'
 
 const crypto = require('crypto')
+
 const fp = require('fastify-plugin')
 const fetch = require('node-fetch')
 const { v4: uuidv4 } = require('uuid')
@@ -13,17 +14,10 @@ const MAX_TIMEOUT = 3600
 const RETRY_TIMEOUT = 20
 const RETRY_RESPONSE = { inSeconds: RETRY_TIMEOUT, withExecutableSchema: false }
 
-const defaultRegistryURl =
-  'https://schema-reporting.api.apollographql.com/api/graphql'
+const defaultRegistryURl = 'https://schema-reporting.api.apollographql.com/api/graphql'
 const defaultGraphVariant = 'current'
 
-async function makeRegistryRequest ({
-  registryUrl,
-  apiKey,
-  edgeServerInfo,
-  executableSchema,
-  log
-}) {
+async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, executableSchema, log }) {
   const response = await fetch(registryUrl, {
     method: 'POST',
     headers: {
@@ -41,9 +35,7 @@ async function makeRegistryRequest ({
   })
 
   if (!response.ok) {
-    log.warn(
-      `registry request failed with HTTP error response: ${response.status} ${response.statusText}`
-    )
+    log.warn(`registry request failed with HTTP error response: ${response.status} ${response.statusText}`)
     // Protocol requires us to try again in 20 seconds for non-2xx response.
     return RETRY_RESPONSE
   }
@@ -72,18 +64,18 @@ async function makeRegistryRequest ({
   return RETRY_RESPONSE
 }
 
-function normalizeSchema (schema) {
+function normalizeSchema(schema) {
   return schema
     .replace(/(\r\n|\n|\r)/gm, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
-function getExecutableSchemaId (schema) {
+function getExecutableSchemaId(schema) {
   return crypto.createHash('sha256').update(schema).digest('hex')
 }
 
-async function reporterLoop (fastify, options, edgeServerInfo) {
+async function reporterLoop(fastify, options, edgeServerInfo) {
   let lastResponse
   let timeoutHandle
   let resolveTimeoutPromise
@@ -101,14 +93,9 @@ async function reporterLoop (fastify, options, edgeServerInfo) {
 
   do {
     try {
-      const executableSchema =
-        lastResponse && lastResponse.withExecutableSchema
-          ? options.schema
-          : false
+      const executableSchema = lastResponse && lastResponse.withExecutableSchema ? options.schema : false
 
-      fastify.log.debug(
-        `making registry request with schema: ${!!executableSchema}`
-      )
+      fastify.log.debug(`making registry request with schema: ${!!executableSchema}`)
 
       lastResponse = await makeRegistryRequest({
         ...options,
@@ -124,11 +111,9 @@ async function reporterLoop (fastify, options, edgeServerInfo) {
         lastResponse = RETRY_RESPONSE
       }
 
-      fastify.log.debug(
-        `waiting ${lastResponse.inSeconds} seconds until next registry request`
-      )
+      fastify.log.debug(`waiting ${lastResponse.inSeconds} seconds until next registry request`)
 
-      await new Promise(resolve => {
+      await new Promise((resolve) => {
         resolveTimeoutPromise = resolve
         timeoutHandle = setTimeout(resolve, lastResponse.inSeconds * 1000)
       })
