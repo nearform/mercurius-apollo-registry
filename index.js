@@ -6,6 +6,12 @@ const fetch = require('node-fetch')
 const { v4: uuidv4 } = require('uuid')
 
 const { initialQuery, reportQuery } = require('./lib/queries')
+// The maximum time we will wait before overriding the registry suggestion.
+const MAX_TIMEOUT = 3600
+
+// Timeout before retrying registry requests after an error.
+const RETRY_TIMEOUT = 20
+const RETRY_RESPONSE = { inSeconds: RETRY_TIMEOUT, withExecutableSchema: false }
 
 const defaultRegistryURl =
   'https://schema-reporting.api.apollographql.com/api/graphql'
@@ -39,7 +45,7 @@ async function makeRegistryRequest({
       `registry request failed with HTTP error response: ${response.status} ${response.statusText}`
     )
     // Protocol requires us to try again in 20 seconds for non-2xx response.
-    return { inSeconds: 20, withExecutableSchema: false }
+    return RETRY_RESPONSE
   }
 
   const jsonData = await response.json()
@@ -109,11 +115,11 @@ async function reporterLoop(fastify, options, edgeServerInfo) {
         log: fastify.log
       })
 
-      if (lastResponse.inSeconds >= 3600) {
+      if (lastResponse.inSeconds >= MAX_TIMEOUT) {
         fastify.log.warn(
-          'registry timeout is greater than 3600 seconds. Possible registry or configuration issue. Trying again in 60 seconds.'
+          `registry timeout is greater than ${MAX_TIMEOUT} seconds. Possible registry or configuration issue. Trying again in ${RETRY_TIMEOUT} seconds.`
         )
-        lastResponse.inSeconds = 60
+        lastResponse = RETRY_RESPONSE
       }
 
       fastify.log.debug(
