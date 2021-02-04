@@ -17,7 +17,7 @@ const defaultRegistryURl =
   'https://schema-reporting.api.apollographql.com/api/graphql'
 const defaultGraphVariant = 'current'
 
-async function makeRegistryRequest({
+async function makeRegistryRequest ({
   registryUrl,
   apiKey,
   edgeServerInfo,
@@ -72,18 +72,18 @@ async function makeRegistryRequest({
   return RETRY_RESPONSE
 }
 
-function normalizeSchema(schema) {
+function normalizeSchema (schema) {
   return schema
     .replace(/(\r\n|\n|\r)/gm, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
-function getExecutableSchemaId(schema) {
+function getExecutableSchemaId (schema) {
   return crypto.createHash('sha256').update(schema).digest('hex')
 }
 
-async function reporterLoop(fastify, options, edgeServerInfo) {
+async function reporterLoop (fastify, options, edgeServerInfo) {
   let lastResponse
   let timeoutHandle
   let resolveTimeoutPromise

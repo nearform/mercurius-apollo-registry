@@ -12,9 +12,9 @@ const { initialQuery, reportQuery } = require('../lib/queries')
 
 const RETRY_TIMEOUT = 20
 
-const clock = sinon.useFakeTimers();
+const clock = sinon.useFakeTimers()
 
-function makeStubMercurius() {
+function makeStubMercurius () {
   return fp(async () => {}, {
     name: 'mercurius'
   })
@@ -32,7 +32,7 @@ test('plugin registration', async t => {
               reportServerInfo: {
                 inSeconds: 180,
                 withExecutableSchema: false
-              },
+              }
             }
           }
         })
@@ -106,7 +106,7 @@ test('plugin registration', async t => {
 
     fastify.register(plugin, {
       apiKey: faker.random.uuid(),
-      schema: faker.lorem.paragraph(),
+      schema: faker.lorem.paragraph()
     })
 
     return fastify.ready()
