@@ -287,4 +287,75 @@ test('apollo registry api requests', async t => {
     await clock.tickAsync(RETRY_TIMEOUT * 1000)
     t.equal(fetchMock.getCalls().length, 2)
   })
+
+  t.test('plugin retries after a malformed registry response', async t => {
+    const { fastify, opts } = t.context
+
+    const fetchMock = sinon.stub().resolves({
+      ok: true,
+      json: sinon.stub().resolves({ foo: 'bar' })
+    })
+
+    const plugin = proxyquire('../', { 'node-fetch': fetchMock })
+    fastify.register(plugin, opts)
+
+    await fastify.ready()
+
+    // Initial call made?
+    t.equal(fetchMock.getCalls().length, 1)
+
+    // advance time by RETRY_TIMEOUT - 2 seconds
+    await clock.tickAsync((RETRY_TIMEOUT - 2) * 1000)
+    t.equal(fetchMock.getCalls().length, 1)
+
+    // advance time to after RETRY_TIMEOUT
+    await clock.tickAsync(RETRY_TIMEOUT * 1000)
+    t.equal(fetchMock.getCalls().length, 2)
+  })
+
+  t.test('plugin retries after an unknown registry response', async t => {
+    const { fastify, opts } = t.context
+    const fetchMock = sinon.stub().resolves({
+      ok: true,
+      json: sinon.stub().resolves({
+        data: {
+          me: {
+            foo: 'bar'
+          }
+        }
+      })
+    })
+
+    const plugin = proxyquire('../', { 'node-fetch': fetchMock })
+    fastify.register(plugin, opts)
+
+    await fastify.ready()
+
+    // Initial call made?
+    t.equal(fetchMock.getCalls().length, 1)
+
+    // advance time by RETRY_TIMEOUT - 2 seconds
+    await clock.tickAsync((RETRY_TIMEOUT - 2) * 1000)
+    t.equal(fetchMock.getCalls().length, 1)
+
+    // advance time to after RETRY_TIMEOUT
+    await clock.tickAsync(RETRY_TIMEOUT * 1000)
+    t.equal(fetchMock.getCalls().length, 2)
+  })
+
+  t.test('plugin exits after a fatal exception', async t => {
+    const { fastify, opts } = t.context
+    const fetchMock = sinon.stub().throws()
+
+    const plugin = proxyquire('../', { 'node-fetch': fetchMock })
+    fastify.register(plugin, opts)
+
+    await fastify.ready()
+    t.equal(fetchMock.getCalls().length, 1)
+
+    // Ensure plugin has exited on exception by checking
+    // there are no further retries.
+    await clock.tickAsync((RETRY_TIMEOUT * 2) * 1000)
+    t.equal(fetchMock.getCalls().length, 1)
+  })
 })

@@ -53,7 +53,9 @@ async function makeRegistryRequest({
 
   if (!jsonData || !jsonData.data || !jsonData.data.me) {
     log.warn('malformed registry response')
-    throw new Error('malformed registry response')
+
+    // Retry request after timeout.
+    return RETRY_RESPONSE
   }
 
   const {
@@ -64,10 +66,10 @@ async function makeRegistryRequest({
     return report.reportServerInfo
   }
 
-  // if the protocol response doesn't match
-  // expected parameters we stop reporting.
-  log.warn(report, 'unknown registry error occurred')
-  throw new Error('unknown registry error occurred')
+  // Protocol response doesn't match expected parameters
+  // Retry request after timeout.
+  log.warn(report, 'unknown registry response')
+  return RETRY_RESPONSE
 }
 
 function normalizeSchema(schema) {
