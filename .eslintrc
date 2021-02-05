@@ -2,14 +2,10 @@
 {
   "extends": ["standard", "plugin:prettier/recommended"],
   "env": {
-    "browser": false,
-    "commonjs": true,
-    "es2021": true
-  },
-  "parserOptions": {
-    "ecmaVersion": 12
+    "commonjs": true
   },
   "rules": {
+    "strict": "error",
     "import/order": [
       "error",
       {

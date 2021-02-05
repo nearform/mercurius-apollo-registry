@@ -1,5 +1,3 @@
-'use strict'
-
 const Fastify = require('fastify')
 const mercurius = require('mercurius')
 
@@ -46,7 +44,7 @@ app.register(mercurius, {
 
 app.register(mercuriusApolloRegistry, {
   schema,
-  apiKey: ''
+  apiKey: 'update-with-your-graphs-api-key'
 })
 
 app.listen(3000)

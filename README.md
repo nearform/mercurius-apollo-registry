@@ -5,8 +5,10 @@ A Mercurius plugin for schema reporting to Apollo Studio.
 ## Installation
 
 ```
-npm install --save mercurius-apollo-registry
+npm install mercurius-apollo-registry
 ```
+
+Please note that this plugin requires Mercurius as a dependency.
 
 ## Usage
 
@@ -29,8 +31,6 @@ fastify.register(mercuriusApolloRegistry, {
 })
 
 ```
-
-Please note that this plugin requires Mercurius as a dependency.
 
 ### Plugin options
 

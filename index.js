@@ -1,23 +1,28 @@
-'use strict'
-
-const crypto = require('crypto')
-
 const fp = require('fastify-plugin')
 const fetch = require('node-fetch')
 const { v4: uuidv4 } = require('uuid')
 
+const { getExecutableSchemaId, normalizeSchema } = require('./lib/util')
 const { initialQuery, reportQuery } = require('./lib/queries')
-// The maximum time we will wait before overriding the registry suggestion.
-const MAX_TIMEOUT = 3600
 
-// Timeout before retrying registry requests after an error.
-const RETRY_TIMEOUT = 20
-const RETRY_RESPONSE = { inSeconds: RETRY_TIMEOUT, withExecutableSchema: false }
+const MAX_TIMEOUT_SEC = 3600
+const RETRY_TIMEOUT_SEC = 20
+const RETRY_RESPONSE = {
+  inSeconds: RETRY_TIMEOUT_SEC,
+  withExecutableSchema: false
+}
 
-const defaultRegistryURl = 'https://schema-reporting.api.apollographql.com/api/graphql'
+const defaultRegistryUrl =
+  'https://schema-reporting.api.apollographql.com/api/graphql'
 const defaultGraphVariant = 'current'
 
-async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, executableSchema, log }) {
+async function makeRegistryRequest({
+  registryUrl,
+  apiKey,
+  edgeServerInfo,
+  executableSchema,
+  log
+}) {
   const response = await fetch(registryUrl, {
     method: 'POST',
     headers: {
@@ -35,7 +40,9 @@ async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, execut
   })
 
   if (!response.ok) {
-    log.warn(`registry request failed with HTTP error response: ${response.status} ${response.statusText}`)
+    log.warn(
+      `registry request failed with HTTP error response: ${response.status} ${response.statusText}`
+    )
     // Protocol requires us to try again in 20 seconds for non-2xx response.
     return RETRY_RESPONSE
   }
@@ -64,17 +71,6 @@ async function makeRegistryRequest({ registryUrl, apiKey, edgeServerInfo, execut
   return RETRY_RESPONSE
 }
 
-function normalizeSchema(schema) {
-  return schema
-    .replace(/(\r\n|\n|\r)/gm, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function getExecutableSchemaId(schema) {
-  return crypto.createHash('sha256').update(schema).digest('hex')
-}
-
 async function reporterLoop(fastify, options, edgeServerInfo) {
   let lastResponse
   let timeoutHandle
@@ -93,9 +89,14 @@ async function reporterLoop(fastify, options, edgeServerInfo) {
 
   do {
     try {
-      const executableSchema = lastResponse && lastResponse.withExecutableSchema ? options.schema : false
+      const executableSchema =
+        lastResponse && lastResponse.withExecutableSchema
+          ? options.schema
+          : false
 
-      fastify.log.debug(`making registry request with executableSchema: ${!!executableSchema}`)
+      fastify.log.debug(
+        `making registry request with executableSchema: ${!!executableSchema}`
+      )
 
       lastResponse = await makeRegistryRequest({
         ...options,
@@ -104,14 +105,16 @@ async function reporterLoop(fastify, options, edgeServerInfo) {
         log: fastify.log
       })
 
-      if (lastResponse.inSeconds >= MAX_TIMEOUT) {
+      if (lastResponse.inSeconds >= MAX_TIMEOUT_SEC) {
         fastify.log.warn(
-          `registry timeout is greater than ${MAX_TIMEOUT} seconds. Possible registry or configuration issue. Trying again in ${RETRY_TIMEOUT} seconds.`
+          `registry timeout is greater than ${MAX_TIMEOUT_SEC} seconds. Possible registry or configuration issue. Trying again in ${RETRY_TIMEOUT_SEC} seconds.`
         )
         lastResponse = RETRY_RESPONSE
       }
 
-      fastify.log.debug(`waiting ${lastResponse.inSeconds} seconds until next registry request`)
+      fastify.log.debug(
+        `waiting ${lastResponse.inSeconds} seconds until next registry request`
+      )
 
       await new Promise((resolve) => {
         resolveTimeoutPromise = resolve
@@ -137,7 +140,7 @@ const plugin = async function (fastify, opts) {
 
   const options = {
     graphVariant: opts.graphVariant || defaultGraphVariant,
-    registryUrl: opts.registryUrl || defaultRegistryURl,
+    registryUrl: opts.registryUrl || defaultRegistryUrl,
     schema: normalizeSchema(opts.schema),
     apiKey: opts.apiKey
   }
