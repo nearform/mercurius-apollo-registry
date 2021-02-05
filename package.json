@@ -4,7 +4,7 @@
   "description": "A schema reporting plugin for Mercurius",
   "main": "index.js",
   "scripts": {
-    "test": "tap test/*.test.js",
+    "test": "tap",
     "test:ci": "tap --coverage-report=lcov test/*.test.js",
     "cov": "tap --coverage-report=lcov test/*.test.js",
     "lint": "eslint index.js test/** examples/** lib/**",
