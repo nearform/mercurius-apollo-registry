@@ -95,7 +95,7 @@ async function reporterLoop(fastify, options, edgeServerInfo) {
     try {
       const executableSchema = lastResponse && lastResponse.withExecutableSchema ? options.schema : false
 
-      fastify.log.debug(`making registry request with schema: ${!!executableSchema}`)
+      fastify.log.debug(`making registry request with executableSchema: ${!!executableSchema}`)
 
       lastResponse = await makeRegistryRequest({
         ...options,
