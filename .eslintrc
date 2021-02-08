@@ -1,0 +1,18 @@
+{
+  "extends": ["standard", "plugin:prettier/recommended"],
+  "env": {
+    "commonjs": true
+  },
+  "parserOptions": {
+    "sourceType": "script"
+  },
+  "rules": {
+    "strict": "error",
+    "import/order": [
+      "error",
+      {
+        "newlines-between": "always"
+      }
+    ]
+  }
+}
