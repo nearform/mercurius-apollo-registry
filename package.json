@@ -4,10 +4,9 @@
   "description": "A schema reporting plugin for Mercurius",
   "main": "index.js",
   "scripts": {
-    "test": "tap",
-    "test:ci": "tap --coverage-report=lcov test/*.test.js",
-    "cov": "tap --coverage-report=lcov test/*.test.js",
-    "lint": "eslint index.js test/** examples/** lib/**",
+    "test": "tap test",
+    "test:ci": "tap --coverage-report=lcov test",
+    "lint": "eslint .",
     "lint:fix": "npm run lint -- --fix",
     "lint:staged": "lint-staged"
   },
@@ -27,9 +26,9 @@
   },
   "homepage": "https://github.com/nearform/mercurius-apollo-registry#readme",
   "engines": {
-    "node": ">= 12.13.0"
+    "node": ">=12"
   },
-  "author": "NearForm Ltd",
+  "author": "Nigel Hanlon <nigel.hanlon@nearform.com>",
   "license": "Apache-2.0",
   "dependencies": {
     "fastify-plugin": "^3.0.0",
