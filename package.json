@@ -46,7 +46,7 @@
     "eslint-plugin-standard": "^5.0.0",
     "faker": "^5.2.0",
     "fastify": "^3.7.0",
-    "husky": "^4.3.0",
+    "husky": "^6.0.0",
     "lint-staged": "^10.4.0",
     "prettier": "^2.1.2",
     "proxyquire": "^2.1.3",
