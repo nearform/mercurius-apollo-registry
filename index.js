@@ -155,8 +155,10 @@ const plugin = async function (fastify, opts) {
 
   fastify.log.debug(edgeServerInfo, 'generated edge server config')
 
-  fastify.addHook('onReady', async function () {
-    reporterLoop(fastify, options, edgeServerInfo)
+  fastify.addHook('onReady', function () {
+    reporterLoop(fastify, options, edgeServerInfo).catch((err) => {
+      fastify.log.error(err)
+    })
   })
 }
 

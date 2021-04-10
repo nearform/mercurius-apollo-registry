@@ -47,7 +47,7 @@ test('plugin registration', async (t) => {
   })
 
   t.afterEach(async () => {
-    return t.tearDown(t.context.fastify.close.bind(t.context.fastify))
+    return t.teardown(t.context.fastify.close.bind(t.context.fastify))
   })
 
   t.test('plugin should exist and load without error', async (t) => {
@@ -125,7 +125,7 @@ test('apollo registry api requests', async (t) => {
   })
 
   t.afterEach(async () => {
-    return t.tearDown(t.context.fastify.close.bind(t.context.fastify))
+    return t.teardown(t.context.fastify.close.bind(t.context.fastify))
   })
 
   t.test(
@@ -249,11 +249,11 @@ test('apollo registry api requests', async (t) => {
       await fastify.ready()
 
       // initial call to registry
-      t.equal(fetchMock.getCalls().length, 1)
+      sinon.assert.calledOnce(fetchMock)
 
       // advance time to after RETRY_TIMEOUT
       await clock.tickAsync((RETRY_TIMEOUT + 10) * 1000)
-      t.equal(fetchMock.getCalls().length, 2)
+      sinon.assert.calledTwice(fetchMock)
 
       const requestInit = fetchMock.getCalls()[1].args[1]
       const parsedBody = JSON.parse(requestInit.body)
@@ -280,15 +280,15 @@ test('apollo registry api requests', async (t) => {
       await fastify.ready()
 
       // Initial call made?
-      t.equal(fetchMock.getCalls().length, 1)
+      sinon.assert.calledOnce(fetchMock)
 
       // advance time by RETRY_TIMEOUT - 2 seconds
       await clock.tickAsync((RETRY_TIMEOUT - 2) * 1000)
-      t.equal(fetchMock.getCalls().length, 1)
+      sinon.assert.calledOnce(fetchMock)
 
       // advance time to after RETRY_TIMEOUT
       await clock.tickAsync(RETRY_TIMEOUT * 1000)
-      t.equal(fetchMock.getCalls().length, 2)
+      sinon.assert.calledTwice(fetchMock)
     }
   )
 
@@ -306,15 +306,15 @@ test('apollo registry api requests', async (t) => {
     await fastify.ready()
 
     // Initial call made?
-    t.equal(fetchMock.getCalls().length, 1)
+    sinon.assert.calledOnce(fetchMock)
 
     // advance time by RETRY_TIMEOUT - 2 seconds
     await clock.tickAsync((RETRY_TIMEOUT - 2) * 1000)
-    t.equal(fetchMock.getCalls().length, 1)
+    sinon.assert.calledOnce(fetchMock)
 
     // advance time to after RETRY_TIMEOUT
     await clock.tickAsync(RETRY_TIMEOUT * 1000)
-    t.equal(fetchMock.getCalls().length, 2)
+    sinon.assert.calledTwice(fetchMock)
   })
 
   t.test('plugin retries after an unknown registry response', async (t) => {
@@ -336,30 +336,32 @@ test('apollo registry api requests', async (t) => {
     await fastify.ready()
 
     // Initial call made?
-    t.equal(fetchMock.getCalls().length, 1)
+    sinon.assert.calledOnce(fetchMock)
 
     // advance time by RETRY_TIMEOUT - 2 seconds
     await clock.tickAsync((RETRY_TIMEOUT - 2) * 1000)
-    t.equal(fetchMock.getCalls().length, 1)
+    sinon.assert.calledOnce(fetchMock)
 
     // advance time to after RETRY_TIMEOUT
     await clock.tickAsync(RETRY_TIMEOUT * 1000)
-    t.equal(fetchMock.getCalls().length, 2)
+    sinon.assert.calledTwice(fetchMock)
   })
 
   t.test('plugin exits after a fatal exception', async (t) => {
     const { fastify, opts } = t.context
-    const fetchMock = sinon.stub().throws()
+    const fetchMock = sinon.stub().throws(new Error('fetch error'))
 
     const plugin = proxyquire('../', { 'node-fetch': fetchMock })
     fastify.register(plugin, opts)
 
     await fastify.ready()
-    t.equal(fetchMock.getCalls().length, 1)
+
+    sinon.assert.calledOnce(fetchMock)
 
     // Ensure plugin has exited on exception by checking
     // there are no further retries.
     await clock.tickAsync(RETRY_TIMEOUT * 2 * 1000)
-    t.equal(fetchMock.getCalls().length, 1)
+
+    sinon.assert.calledOnce(fetchMock)
   })
 })
