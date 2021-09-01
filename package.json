@@ -32,7 +32,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "fastify-plugin": "^3.0.0",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^3.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
