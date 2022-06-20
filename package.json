@@ -1,6 +1,6 @@
 {
   "name": "mercurius-apollo-registry",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "A schema reporting plugin for Mercurius",
   "main": "index.js",
   "scripts": {
