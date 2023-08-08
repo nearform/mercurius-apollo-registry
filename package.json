@@ -54,7 +54,7 @@
     "tap": "^16.0.0"
   },
   "peerDependencies": {
-    "mercurius": "^10.0.0"
+    "mercurius": "^13.0.0"
   },
   "lint-staged": {
     "*.js": [
