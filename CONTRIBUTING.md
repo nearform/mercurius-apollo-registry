@@ -25,7 +25,7 @@ npm run lint
 npm run test
 ```
 
-**Test your changes**
+### Test your changes
 
 To test your changes, create an Account in [Apollo Studio](https://studio.apollographql.com/).
 Then you can create a new graph application by adding an endpoint; feel free to use this `https://schema-reporting.api.apollographql.com/api/graphql`.
