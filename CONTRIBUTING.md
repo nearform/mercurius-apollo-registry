@@ -25,6 +25,14 @@ npm run lint
 npm run test
 ```
 
+**Test your changes**
+
+To test your changes, create an Account in [Apollo Studio](https://studio.apollographql.com/).
+Then you can create a new graph application by adding an endpoint; feel free to use this `https://schema-reporting.api.apollographql.com/api/graphql`.
+Then move to the settings tab and select the `API Keys` option, create a new key and copy it.
+Use it in the `examples/basic.js` file.
+You can run the example with `node examples/basic.js` or `node --inspect examples/basic.js` to check the result of your development.
+
 ---
 
 <a id="developers-certificate-of-origin"></a>
