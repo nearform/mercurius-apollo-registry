@@ -10,8 +10,9 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - 18
           - 20
+          - 22
+          - 24
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,7 +30,7 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Run Tests
-        run: npm run test:ci
+        run: npm run test
   automerge:
     needs: build
     runs-on: ubuntu-latest
