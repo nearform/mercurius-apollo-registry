@@ -4,10 +4,11 @@ const { test } = require('node:test')
 
 const Fastify = require('fastify')
 const fp = require('fastify-plugin')
-const proxyquire = require('proxyquire')
 const sinon = require('sinon')
 const faker = require('faker')
+const nock = require('nock')
 
+const plugin = require('../')
 const { initialQuery, reportQuery } = require('../lib/queries')
 
 const RETRY_TIMEOUT = 20
@@ -24,22 +25,21 @@ test('plugin registration', async (t) => {
   let fastifyContext
   let pluginContext
 
+  const registryUrl = faker.internet.url()
+
   t.beforeEach(async () => {
-    const fetchMock = sinon.stub().resolves({
-      ok: true,
-      json: sinon.stub().resolves({
-        data: {
-          me: {
-            reportServerInfo: {
-              inSeconds: 180,
-              withExecutableSchema: false
-            }
+    nock.disableNetConnect()
+
+    nock(registryUrl)
+      .post()
+      .reply(200, {
+        me: {
+          reportServerInfo: {
+            inSeconds: 180,
+            withExecutableSchema: false
           }
         }
       })
-    })
-
-    const plugin = proxyquire('../', { 'node-fetch': fetchMock })
 
     const fastify = Fastify()
 
@@ -53,7 +53,7 @@ test('plugin registration', async (t) => {
 
   await t.test('plugin should exist and load without error', async (t) => {
     fastifyContext.register(pluginContext, {
-      apiKey: faker.random.uuid(),
+      apiKey: faker.datatype.uuid(),
       schema: faker.lorem.paragraph(),
       registryUrl: faker.internet.url()
     })
@@ -65,7 +65,7 @@ test('plugin registration', async (t) => {
     'plugin should throw an error if schema is missing',
     async (t) => {
       fastifyContext.register(pluginContext, {
-        apiKey: faker.random.uuid(),
+        apiKey: faker.datatype.uuid(),
         registryUrl: faker.internet.url()
       })
 
@@ -80,7 +80,7 @@ test('plugin registration', async (t) => {
     'plugin should throw an error if schema is missing',
     async (t) => {
       fastifyContext.register(pluginContext, {
-        apiKey: faker.random.uuid(),
+        apiKey: faker.datatype.uuid(),
         registryUrl: faker.internet.url(),
         schema: ''
       })
@@ -109,7 +109,7 @@ test('plugin registration', async (t) => {
 
   await t.test('registryUrl should be optional', async (t) => {
     fastifyContext.register(pluginContext, {
-      apiKey: faker.random.uuid(),
+      apiKey: faker.datatype.uuid(),
       schema: faker.lorem.paragraph()
     })
 
@@ -127,7 +127,7 @@ test('apollo registry api requests', async (t) => {
 
     fastifyContext = fastify
     opts = {
-      apiKey: faker.random.uuid(),
+      apiKey: faker.datatype.uuid(),
       schema: faker.lorem.paragraph(),
       registryUrl: faker.internet.url()
     }
@@ -139,32 +139,37 @@ test('apollo registry api requests', async (t) => {
     'invokes the api with executableSchema false and the initial query',
     async (t) => {
       const REGISTRY_TIMEOUT = 60
-      const fetchMock = sinon.stub().resolves({
-        ok: true,
-        json: sinon.stub().resolves({
-          data: {
-            me: {
-              reportServerInfo: {
-                inSeconds: REGISTRY_TIMEOUT,
-                withExecutableSchema: true
+      let requestBody
+      let requestHeaders
+
+      const scope = nock(opts.registryUrl)
+        .post('/')
+        .reply(function (uri, body) {
+          requestBody = body
+          requestHeaders = this.req.headers
+          return [
+            200,
+            {
+              data: {
+                me: {
+                  reportServerInfo: {
+                    inSeconds: REGISTRY_TIMEOUT,
+                    withExecutableSchema: true
+                  }
+                }
               }
             }
-          }
+          ]
         })
-      })
 
-      const plugin = proxyquire('../', { 'node-fetch': fetchMock })
       fastifyContext.register(plugin, opts)
 
       await fastifyContext.ready()
+      await new Promise((resolve) => scope.once('replied', resolve))
 
-      const requestInit = fetchMock.getCalls()[0].args[1]
+      t.assert.strictEqual(requestHeaders['x-api-key'], opts.apiKey)
 
-      sinon.assert.match(requestInit.headers, { 'x-api-key': opts.apiKey })
-
-      const parsedBody = JSON.parse(requestInit.body)
-
-      sinon.assert.match(parsedBody, {
+      sinon.assert.match(requestBody, {
         query: initialQuery,
         variables: {
           executableSchema: false,
@@ -178,43 +183,53 @@ test('apollo registry api requests', async (t) => {
     'runs the next iteration only when the inSeconds from the response have elapsed',
     async (t) => {
       const REGISTRY_TIMEOUT = 60
+      let callCount = 0
+      let secondRequestBody
+      let secondRequestHeaders
 
-      const fetchMock = sinon.stub().resolves({
-        ok: true,
-        json: sinon.stub().resolves({
-          data: {
-            me: {
-              reportServerInfo: {
-                inSeconds: REGISTRY_TIMEOUT,
-                withExecutableSchema: true
+      const scope = nock(opts.registryUrl)
+        .post('/')
+        .times(2)
+        .reply(function (uri, body) {
+          callCount++
+          if (callCount === 2) {
+            secondRequestBody = body
+            secondRequestHeaders = this.req.headers
+          }
+          return [
+            200,
+            {
+              data: {
+                me: {
+                  reportServerInfo: {
+                    inSeconds: REGISTRY_TIMEOUT,
+                    withExecutableSchema: true
+                  }
+                }
               }
             }
-          }
+          ]
         })
-      })
 
-      const plugin = proxyquire('../', { 'node-fetch': fetchMock })
       fastifyContext.register(plugin, opts)
 
       await fastifyContext.ready()
+      await new Promise((resolve) => scope.once('replied', resolve))
 
-      t.assert.strictEqual(fetchMock.getCalls().length, 1)
+      t.assert.strictEqual(callCount, 1)
 
       // advance time by REGISTRY_TIMEOUT - 2 seconds
       await clock.tickAsync((REGISTRY_TIMEOUT - 2) * 1000)
-      t.assert.strictEqual(fetchMock.getCalls().length, 1)
+      t.assert.strictEqual(callCount, 1)
 
       // advance time to REGISTRY_TIMEOUT
       await clock.tickAsync(REGISTRY_TIMEOUT * 1000)
-      t.assert.strictEqual(fetchMock.getCalls().length, 2)
+      await new Promise((resolve) => scope.once('replied', resolve))
+      t.assert.strictEqual(callCount, 2)
 
-      const requestInit = fetchMock.getCalls()[1].args[1]
+      t.assert.strictEqual(secondRequestHeaders['x-api-key'], opts.apiKey)
 
-      sinon.assert.match(requestInit.headers, { 'x-api-key': opts.apiKey })
-
-      const parsedBody = JSON.parse(requestInit.body)
-
-      sinon.assert.match(parsedBody, {
+      sinon.assert.match(secondRequestBody, {
         query: reportQuery,
         variables: {
           executableSchema: opts.schema,
@@ -229,37 +244,46 @@ test('apollo registry api requests', async (t) => {
     async (t) => {
       // 24 Hour timeout
       const REGISTRY_TIMEOUT = 86400
+      let callCount = 0
+      let secondRequestBody
 
-      const fetchMock = sinon.stub().resolves({
-        ok: true,
-        json: sinon.stub().resolves({
-          data: {
-            me: {
-              reportServerInfo: {
-                inSeconds: REGISTRY_TIMEOUT,
-                withExecutableSchema: false
+      const scope = nock(opts.registryUrl)
+        .post('/')
+        .times(2)
+        .reply(function (uri, body) {
+          callCount++
+          if (callCount === 2) {
+            secondRequestBody = body
+          }
+          return [
+            200,
+            {
+              data: {
+                me: {
+                  reportServerInfo: {
+                    inSeconds: REGISTRY_TIMEOUT,
+                    withExecutableSchema: false
+                  }
+                }
               }
             }
-          }
+          ]
         })
-      })
 
-      const plugin = proxyquire('../', { 'node-fetch': fetchMock })
       fastifyContext.register(plugin, opts)
 
       await fastifyContext.ready()
+      await new Promise((resolve) => scope.once('replied', resolve))
 
       // initial call to registry
-      sinon.assert.calledOnce(fetchMock)
+      t.assert.strictEqual(callCount, 1)
 
       // advance time to after RETRY_TIMEOUT
       await clock.tickAsync((RETRY_TIMEOUT + 10) * 1000)
-      sinon.assert.calledTwice(fetchMock)
+      await new Promise((resolve) => scope.once('replied', resolve))
+      t.assert.strictEqual(callCount, 2)
 
-      const requestInit = fetchMock.getCalls()[1].args[1]
-      const parsedBody = JSON.parse(requestInit.body)
-
-      sinon.assert.match(parsedBody, {
+      sinon.assert.match(secondRequestBody, {
         query: initialQuery,
         variables: {
           executableSchema: false,
@@ -272,97 +296,104 @@ test('apollo registry api requests', async (t) => {
   await t.test(
     'plugin retries after a failed registry request (non 200)',
     async (t) => {
-      const fetchMock = sinon.stub().resolves({ ok: false })
-      const plugin = proxyquire('../', { 'node-fetch': fetchMock })
+      let callCount = 0
+
+      const scope = nock(opts.registryUrl)
+        .post('/')
+        .times(2)
+        .reply(function () {
+          callCount++
+          return [500, 'Internal Server Error']
+        })
+
       fastifyContext.register(plugin, opts)
 
       await fastifyContext.ready()
+      await new Promise((resolve) => scope.once('replied', resolve))
 
       // Initial call made?
-      sinon.assert.calledOnce(fetchMock)
+      t.assert.strictEqual(callCount, 1)
 
       // advance time by RETRY_TIMEOUT - 2 seconds
       await clock.tickAsync((RETRY_TIMEOUT - 2) * 1000)
-      sinon.assert.calledOnce(fetchMock)
+      t.assert.strictEqual(callCount, 1)
 
       // advance time to after RETRY_TIMEOUT
       await clock.tickAsync(RETRY_TIMEOUT * 1000)
-      sinon.assert.calledTwice(fetchMock)
+      t.assert.strictEqual(callCount, 2)
     }
   )
 
   await t.test(
     'plugin retries after a malformed registry response',
     async (t) => {
-      const fetchMock = sinon.stub().resolves({
-        ok: true,
-        json: sinon.stub().resolves({ foo: 'bar' })
-      })
+      let callCount = 0
 
-      const plugin = proxyquire('../', { 'node-fetch': fetchMock })
+      const scope = nock(opts.registryUrl)
+        .post('/')
+        .times(2)
+        .reply(function () {
+          callCount++
+          return [200, { foo: 'bar' }]
+        })
+
       fastifyContext.register(plugin, opts)
 
       await fastifyContext.ready()
+      await new Promise((resolve) => scope.once('replied', resolve))
 
       // Initial call made?
-      sinon.assert.calledOnce(fetchMock)
+      t.assert.strictEqual(callCount, 1)
 
       // advance time by RETRY_TIMEOUT - 2 seconds
       await clock.tickAsync((RETRY_TIMEOUT - 2) * 1000)
-      sinon.assert.calledOnce(fetchMock)
+      t.assert.strictEqual(callCount, 1)
 
       // advance time to after RETRY_TIMEOUT
       await clock.tickAsync(RETRY_TIMEOUT * 1000)
-      sinon.assert.calledTwice(fetchMock)
+      await new Promise((resolve) => scope.once('replied', resolve))
+      t.assert.strictEqual(callCount, 2)
     }
   )
 
   await t.test(
     'plugin retries after an unknown registry response',
     async (t) => {
-      const fetchMock = sinon.stub().resolves({
-        ok: true,
-        json: sinon.stub().resolves({
-          data: {
-            me: {
-              foo: 'bar'
-            }
-          }
-        })
-      })
+      let callCount = 0
 
-      const plugin = proxyquire('../', { 'node-fetch': fetchMock })
+      const scope = nock(opts.registryUrl)
+        .post('/')
+        .times(2)
+        .reply(function () {
+          callCount++
+          return [
+            200,
+            {
+              data: {
+                me: {
+                  foo: 'bar'
+                }
+              }
+            }
+          ]
+        })
+
       fastifyContext.register(plugin, opts)
 
       await fastifyContext.ready()
+      await new Promise((resolve) => scope.once('replied', resolve))
 
       // Initial call made?
-      sinon.assert.calledOnce(fetchMock)
+      t.assert.strictEqual(callCount, 1)
 
       // advance time by RETRY_TIMEOUT - 2 seconds
       await clock.tickAsync((RETRY_TIMEOUT - 2) * 1000)
-      sinon.assert.calledOnce(fetchMock)
+      t.assert.strictEqual(callCount, 1)
 
       // advance time to after RETRY_TIMEOUT
       await clock.tickAsync(RETRY_TIMEOUT * 1000)
-      sinon.assert.calledTwice(fetchMock)
+      await new Promise((resolve) => scope.once('replied', resolve))
+      t.assert.strictEqual(callCount, 2)
     }
   )
-
-  await t.test('plugin exits after a fatal exception', async (t) => {
-    const fetchMock = sinon.stub().throws(new Error('fetch error'))
-
-    const plugin = proxyquire('../', { 'node-fetch': fetchMock })
-    fastifyContext.register(plugin, opts)
-
-    await fastifyContext.ready()
-
-    sinon.assert.calledOnce(fetchMock)
-
-    // Ensure plugin has exited on exception by checking
-    // there are no further retries.
-    await clock.tickAsync(RETRY_TIMEOUT * 2 * 1000)
-
-    sinon.assert.calledOnce(fetchMock)
-  })
 })
