@@ -38,7 +38,7 @@
     "eslint-config-prettier": "^9.1.2",
     "eslint-config-standard": "^17.1.0",
     "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-n": "^16.6.2",
+    "eslint-plugin-n": "^18.3.0",
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-promise": "^6.6.0",
     "eslint-plugin-standard": "^5.0.0",
@@ -63,6 +63,12 @@
     "hooks": {
       "pre-commit": "npm run lint:staged",
       "pre-push": "npm run lint && npm run test"
+    }
+  },
+  "//": "eslint-config-standard@17.1.0 is its final release and peer-pins eslint-plugin-n to ^15||^16. The rules it uses all still exist and fire on eslint-plugin-n 18, so this override corrects stale peer metadata rather than forcing an incompatible version. See #160.",
+  "overrides": {
+    "eslint-config-standard": {
+      "eslint-plugin-n": "$eslint-plugin-n"
     }
   }
 }
