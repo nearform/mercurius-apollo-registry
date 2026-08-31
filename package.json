@@ -42,7 +42,7 @@
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-promise": "^6.6.0",
     "eslint-plugin-standard": "^5.0.0",
-    "faker": "^5.5.3",
+    "faker": "^6.6.6",
     "fastify": "^4.29.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.4.1",
