@@ -30,7 +30,7 @@
   "author": "Nigel Hanlon <nigel.hanlon@nearform.com>",
   "license": "Apache-2.0",
   "dependencies": {
-    "fastify-plugin": "^4.0.0",
+    "fastify-plugin": "^6.0.0",
     "uuid": "^14.0.2"
   },
   "devDependencies": {
