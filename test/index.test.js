@@ -5,7 +5,7 @@ const { test } = require('node:test')
 const Fastify = require('fastify')
 const fp = require('fastify-plugin')
 const sinon = require('sinon')
-const faker = require('faker')
+const { faker } = require('@faker-js/faker')
 const nock = require('nock')
 
 const plugin = require('../')
@@ -53,7 +53,7 @@ test('plugin registration', async (t) => {
 
   await t.test('plugin should exist and load without error', async (t) => {
     fastifyContext.register(pluginContext, {
-      apiKey: faker.datatype.uuid(),
+      apiKey: faker.string.uuid(),
       schema: faker.lorem.paragraph(),
       registryUrl: faker.internet.url()
     })
@@ -65,7 +65,7 @@ test('plugin registration', async (t) => {
     'plugin should throw an error if schema is missing',
     async (t) => {
       fastifyContext.register(pluginContext, {
-        apiKey: faker.datatype.uuid(),
+        apiKey: faker.string.uuid(),
         registryUrl: faker.internet.url()
       })
 
@@ -80,7 +80,7 @@ test('plugin registration', async (t) => {
     'plugin should throw an error if schema is missing',
     async (t) => {
       fastifyContext.register(pluginContext, {
-        apiKey: faker.datatype.uuid(),
+        apiKey: faker.string.uuid(),
         registryUrl: faker.internet.url(),
         schema: ''
       })
@@ -109,7 +109,7 @@ test('plugin registration', async (t) => {
 
   await t.test('registryUrl should be optional', async (t) => {
     fastifyContext.register(pluginContext, {
-      apiKey: faker.datatype.uuid(),
+      apiKey: faker.string.uuid(),
       schema: faker.lorem.paragraph()
     })
 
@@ -127,7 +127,7 @@ test('apollo registry api requests', async (t) => {
 
     fastifyContext = fastify
     opts = {
-      apiKey: faker.datatype.uuid(),
+      apiKey: faker.string.uuid(),
       schema: faker.lorem.paragraph(),
       registryUrl: faker.internet.url()
     }
