@@ -40,7 +40,7 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-n": "^18.3.0",
     "eslint-plugin-prettier": "^5.5.4",
-    "eslint-plugin-promise": "^6.6.0",
+    "eslint-plugin-promise": "^7.3.0",
     "eslint-plugin-standard": "^5.0.0",
     "@faker-js/faker": "^10.0.0",
     "fastify": "^4.29.1",
@@ -65,10 +65,11 @@
       "pre-push": "npm run lint && npm run test"
     }
   },
-  "//": "eslint-config-standard@17.1.0 is its final release and peer-pins eslint-plugin-n to ^15||^16. The rules it uses all still exist and fire on eslint-plugin-n 18, so this override corrects stale peer metadata rather than forcing an incompatible version. See #160.",
+  "//": "eslint-config-standard@17.1.0 is its final release and peer-pins eslint-plugin-n to ^15||^16 and eslint-plugin-promise to ^6. The rules it uses (n/*, promise/param-names) all still exist and fire on eslint-plugin-n 18 and eslint-plugin-promise 7, so these overrides correct stale peer metadata rather than forcing an incompatible version. See #160 and #173.",
   "overrides": {
     "eslint-config-standard": {
-      "eslint-plugin-n": "$eslint-plugin-n"
+      "eslint-plugin-n": "$eslint-plugin-n",
+      "eslint-plugin-promise": "$eslint-plugin-promise"
     }
   }
 }
