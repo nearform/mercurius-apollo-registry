@@ -1,7 +1,8 @@
 'use strict'
 
+const { randomUUID } = require('node:crypto')
+
 const fp = require('fastify-plugin')
-const { v4: uuidv4 } = require('uuid')
 
 const { getExecutableSchemaId, normalizeSchema } = require('./lib/util')
 const { initialQuery, reportQuery } = require('./lib/queries')
@@ -147,7 +148,7 @@ const plugin = async function (fastify, opts) {
   }
 
   const edgeServerInfo = {
-    bootId: uuidv4(),
+    bootId: randomUUID(),
     executableSchemaId: getExecutableSchemaId(options.schema),
     graphVariant: options.graphVariant
   }
