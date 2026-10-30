@@ -13,7 +13,9 @@ const { initialQuery, reportQuery } = require('../lib/queries')
 
 const RETRY_TIMEOUT = 20
 
-const clock = sinon.useFakeTimers()
+const clock = sinon.useFakeTimers({
+  toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date']
+})
 
 function makeStubMercurius() {
   return fp(async () => {}, {
