@@ -49,7 +49,7 @@ test('plugin registration', async (t) => {
     pluginContext = plugin
   })
 
-  t.afterEach(() => fastifyContext.close.bind(fastifyContext))
+  t.afterEach(() => fastifyContext.close())
 
   await t.test('plugin should exist and load without error', async (t) => {
     fastifyContext.register(pluginContext, {
@@ -133,7 +133,7 @@ test('apollo registry api requests', async (t) => {
     }
   })
 
-  t.afterEach(() => fastifyContext.close.bind(fastifyContext))
+  t.afterEach(() => fastifyContext.close())
 
   await t.test(
     'invokes the api with executableSchema false and the initial query',
@@ -320,6 +320,7 @@ test('apollo registry api requests', async (t) => {
 
       // advance time to after RETRY_TIMEOUT
       await clock.tickAsync(RETRY_TIMEOUT * 1000)
+      await new Promise((resolve) => scope.once('replied', resolve))
       t.assert.strictEqual(callCount, 2)
     }
   )

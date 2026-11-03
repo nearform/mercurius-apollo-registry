@@ -163,7 +163,7 @@ const plugin = async function (fastify, opts) {
 }
 
 module.exports = fp(plugin, {
-  fastify: '4.x',
+  fastify: '5.x',
   name: 'mercuriusApolloRegistry',
   dependencies: ['mercurius']
 })

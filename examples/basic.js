@@ -49,4 +49,4 @@ app.register(mercuriusApolloRegistry, {
   apiKey: 'update-with-your-graphs-api-key'
 })
 
-app.listen(3000)
+app.listen({ port: 3000 })
