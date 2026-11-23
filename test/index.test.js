@@ -6,7 +6,7 @@ const Fastify = require('fastify')
 const fp = require('fastify-plugin')
 const sinon = require('sinon')
 const { faker } = require('@faker-js/faker')
-const nock = require('nock')
+const { default: nock } = require('nock')
 
 const plugin = require('../')
 const { initialQuery, reportQuery } = require('../lib/queries')
@@ -146,9 +146,9 @@ test('apollo registry api requests', async (t) => {
 
       const scope = nock(opts.registryUrl)
         .post('/')
-        .reply(function (uri, body) {
-          requestBody = body
-          requestHeaders = this.req.headers
+        .reply(async (request) => {
+          requestBody = await request.json()
+          requestHeaders = Object.fromEntries(request.headers.entries())
           return [
             200,
             {
@@ -192,11 +192,11 @@ test('apollo registry api requests', async (t) => {
       const scope = nock(opts.registryUrl)
         .post('/')
         .times(2)
-        .reply(function (uri, body) {
+        .reply(async (request) => {
           callCount++
           if (callCount === 2) {
-            secondRequestBody = body
-            secondRequestHeaders = this.req.headers
+            secondRequestBody = await request.json()
+            secondRequestHeaders = Object.fromEntries(request.headers.entries())
           }
           return [
             200,
@@ -225,8 +225,9 @@ test('apollo registry api requests', async (t) => {
       t.assert.strictEqual(callCount, 1)
 
       // advance time to REGISTRY_TIMEOUT
+      const nextReply = new Promise((resolve) => scope.once('replied', resolve))
       await clock.tickAsync(REGISTRY_TIMEOUT * 1000)
-      await new Promise((resolve) => scope.once('replied', resolve))
+      await nextReply
       t.assert.strictEqual(callCount, 2)
 
       t.assert.strictEqual(secondRequestHeaders['x-api-key'], opts.apiKey)
@@ -252,10 +253,10 @@ test('apollo registry api requests', async (t) => {
       const scope = nock(opts.registryUrl)
         .post('/')
         .times(2)
-        .reply(function (uri, body) {
+        .reply(async (request) => {
           callCount++
           if (callCount === 2) {
-            secondRequestBody = body
+            secondRequestBody = await request.json()
           }
           return [
             200,
@@ -281,8 +282,9 @@ test('apollo registry api requests', async (t) => {
       t.assert.strictEqual(callCount, 1)
 
       // advance time to after RETRY_TIMEOUT
+      const nextReply = new Promise((resolve) => scope.once('replied', resolve))
       await clock.tickAsync((RETRY_TIMEOUT + 10) * 1000)
-      await new Promise((resolve) => scope.once('replied', resolve))
+      await nextReply
       t.assert.strictEqual(callCount, 2)
 
       sinon.assert.match(secondRequestBody, {
@@ -321,8 +323,9 @@ test('apollo registry api requests', async (t) => {
       t.assert.strictEqual(callCount, 1)
 
       // advance time to after RETRY_TIMEOUT
+      const nextReply = new Promise((resolve) => scope.once('replied', resolve))
       await clock.tickAsync(RETRY_TIMEOUT * 1000)
-      await new Promise((resolve) => scope.once('replied', resolve))
+      await nextReply
       t.assert.strictEqual(callCount, 2)
     }
   )
@@ -353,8 +356,9 @@ test('apollo registry api requests', async (t) => {
       t.assert.strictEqual(callCount, 1)
 
       // advance time to after RETRY_TIMEOUT
+      const nextReply = new Promise((resolve) => scope.once('replied', resolve))
       await clock.tickAsync(RETRY_TIMEOUT * 1000)
-      await new Promise((resolve) => scope.once('replied', resolve))
+      await nextReply
       t.assert.strictEqual(callCount, 2)
     }
   )
@@ -394,8 +398,9 @@ test('apollo registry api requests', async (t) => {
       t.assert.strictEqual(callCount, 1)
 
       // advance time to after RETRY_TIMEOUT
+      const nextReply = new Promise((resolve) => scope.once('replied', resolve))
       await clock.tickAsync(RETRY_TIMEOUT * 1000)
-      await new Promise((resolve) => scope.once('replied', resolve))
+      await nextReply
       t.assert.strictEqual(callCount, 2)
     }
   )
